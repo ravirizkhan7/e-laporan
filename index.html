@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="id" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <title>Report Master V10 - Smart Mobile Zoom</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = { darkMode: 'class', theme: { extend: { colors: { brand: '#2563eb' } } } }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&family=Times+New+Roman&display=swap');
+        body { font-family: 'Plus Jakarta Sans', sans-serif; overflow-x: hidden; }
+        
+        /* FORMAT ASLI A4 - JANGAN DIUBAH */
+        .sheet {
+            width: 210mm;
+            min-height: 297mm;
+            padding: 20mm;
+            background: white;
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 12pt;
+            line-height: 1.5;
+            color: black;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            margin: 0 auto;
+            transform-origin: top center; /* Penting untuk scaling */
+            transition: transform 0.3s ease;
+        }
+
+        .photo-item { width: 100%; max-width: 450px; border: 1px solid #000; margin-top: 10px; display: block; }
+
+        /* OVERLAY PREVIEW MOBILE - KUNCI ADA DI SINI */
+        @media (max-width: 1024px) {
+            #preview-container.mobile-active {
+                display: flex !important;
+                position: fixed;
+                inset: 0;
+                z-index: 9999;
+                background: #1e293b;
+                overflow: auto; /* Memungkinkan zoom dan geser setelah zoom */
+                padding: 20px 10px;
+                justify-content: center;
+                align-items: flex-start;
+            }
+            
+            /* Logic scaling otomatis biar pas di layar HP */
+            .mobile-active .sheet {
+                /* Menghitung scale berdasarkan lebar layar HP dibagi lebar A4 (794px approx) */
+                transform: scale(var(--zoom-level, 0.4)); 
+                margin-top: 20px;
+                margin-bottom: 50px;
+                flex-shrink: 0;
+            }
+        }
+
+        @media print {
+            .no-print { display: none !important; }
+            body { background: white !important; }
+            .sheet { width: 100%; box-shadow: none; padding: 15mm; margin: 0; transform: scale(1) !important; }
+            @page { size: A4; margin: 0; }
+        }
+    </style>
+</head>
+<body class="bg-slate-100 dark:bg-slate-950 transition-colors">
+
+    <div class="flex flex-col lg:flex-row h-screen overflow-hidden">
+        
+        <div id="form-container" class="no-print w-full lg:w-[450px] flex flex-col h-full bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 z-50">
+            <div class="p-5 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
+                <h1 class="text-xl font-black dark:text-white tracking-tighter italic">REVI<span class="text-brand">PORT</span></h1>
+                <div class="flex gap-2">
+                    <button onclick="toggleTheme()" class="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 dark:text-white">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" stroke-width="2"/></svg>
+                    </button>
+                    <button onclick="toggleMobilePreview()" class="lg:hidden p-2.5 rounded-xl bg-brand text-white font-bold flex items-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" stroke-width="2"/><path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" stroke-width="2"/></svg>
+                        CEK A4
+                    </button>
+                </div>
+            </div>
+
+            <div class="flex-1 overflow-y-auto p-5 space-y-6">
+                <div class="space-y-4">
+                    <input type="text" id="in_nama" placeholder="Nama" class="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white border border-slate-200 dark:border-slate-700 outline-none" value="Muhammad Ravi Rizkhan" oninput="updatePreview()">
+                    <input type="text" id="in_nik" placeholder="NIK" class="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white border border-slate-200 dark:border-slate-700 outline-none" value="1305010704050001" oninput="updatePreview()">
+                    <input type="text" id="in_sp" placeholder="No SP" class="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white border border-slate-200 dark:border-slate-700 outline-none" value="EP-01KFAMKFBVKMX721KW58MWMP9M" oninput="updatePreview()">
+                    <div class="grid grid-cols-2 gap-3">
+                        <select id="in_bulan" class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white border border-slate-200" onchange="updatePreview()">
+                            <option value="Januari">Januari</option><option value="Februari">Februari</option><option value="Maret">Maret</option>
+                            <option value="April">April</option><option value="Mei">Mei</option><option value="Juni">Juni</option>
+                        </select>
+                        <input type="number" id="in_tahun" class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white border border-slate-200" value="2026" oninput="updatePreview()">
+                    </div>
+                </div>
+
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center border-t dark:border-slate-800 pt-4">
+                        <span class="text-xs font-bold text-slate-400 uppercase">Kegiatan</span>
+                        <button onclick="addActivityInput()" class="bg-green-600 text-white text-[10px] px-4 py-1.5 rounded-full font-bold shadow-md">+ TAMBAH</button>
+                    </div>
+                    <div id="activity_form_container" class="space-y-4 pb-10"></div>
+                </div>
+            </div>
+
+            <div class="p-5 border-t dark:border-slate-800">
+                <button onclick="window.print()" class="w-full bg-brand py-4 rounded-xl text-white font-bold shadow-lg active:scale-95 transition-all">PRINT SEKARANG</button>
+            </div>
+        </div>
+
+        <div id="preview-container" class="hidden lg:flex flex-1 h-full bg-slate-300 dark:bg-slate-900 p-4 lg:p-10 overflow-auto justify-center items-start">
+            <button onclick="toggleMobilePreview()" class="lg:hidden fixed top-6 right-6 z-[10001] bg-white/20 backdrop-blur-md text-white w-12 h-12 rounded-full font-bold shadow-2xl border border-white/30 flex items-center justify-center">
+                ✕
+            </button>
+            
+            <div id="print_area" class="sheet shadow-2xl">
+                <div class="text-center font-bold underline mb-8 uppercase">
+                    LAPORAN KERJA BULAN <span id="view_bulan_header"></span> TAHUN <span id="view_tahun_header"></span>
+                </div>
+                
+                <table class="w-full mb-6">
+                    <tr><td width="15%">Nama</td><td>: <span id="view_nama"></span></td></tr>
+                    <tr><td>NIK</td><td>: <span id="view_nik"></span></td></tr>
+                    <tr><td>No SP</td><td>: <span id="view_sp"></span></td></tr>
+                    <tr><td colspan="2" class="font-bold">Pengelola Jaringan Internet/LAN SLTA Sederajat</td></tr>
+                </table>
+
+                <div class="mb-4">
+                    <div class="font-bold">1. Ringkasan Pekerjaan:</div>
+                    <p class="text-justify ml-8">
+                        Bulan <span id="view_bulan_desc"></span> merupakan bulan pertama Saya bekerja. Sesuai dengan perjanjian kontrak berdurasi 12 (dua belas) bulan yaitu bulan <span id="view_bulan_kontrak"></span> – Desember tahun <span id="view_tahun_desc"></span>, Saya diminta untuk melakukan pemeriksaan rutin terhadap perangkat keras dan memastikan semua perangkat berfungsi dengan baik, mengatasi masalah jaringan dasar seperti koneksi lambat atau perangkat yang tidak terhubung, membantu pemasangan dan pergantian perangkat jaringan, menyediakan dukungan teknis dasar kepada pengguna, seperti masalah konektivitas internet dan intranet.
+                    </p>
+                </div>
+
+                <div class="mb-4">
+                    <div class="font-bold">2. Aktivitas yang Dilakukan:</div>
+                    <p class="ml-8 mb-2 italic">Berikut adalah aktivitas yang Saya lakukan selama bulan <span id="view_bulan_act"></span> tahun <span id="view_tahun_act"></span> :</p>
+                    <ol id="view_activities_container" class="ml-12 list-decimal space-y-5"></ol>
+                </div>
+
+                <div class="mb-4">
+                    <div class="font-bold">3. Rencana Kedepan:</div>
+                    <p class="ml-8 text-justify">Rencana kedepan Saya adalah meningkatkan kemampuan dan melakukan pekerjaan dengan sebaik-baiknya.</p>
+                </div>
+
+                <div class="mb-4">
+                    <div class="font-bold">4. Tantangan yang Dihadapi:</div>
+                    <p class="ml-8">Saya tidak mendapatkan kendala selama bulan <span id="view_bulan_challenge"></span> <span id="view_tahun_challenge"></span>.</p>
+                </div>
+
+                <div class="mt-20 flex justify-end">
+                    <div class="text-center">
+                        <p>Pariaman, <span id="view_tgl_akhir"></span></p>
+                        <div class="h-28"></div>
+                        <p class="font-bold underline uppercase"><span id="view_nama_footer"></span></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let activities = [];
+
+        function toggleTheme() { document.documentElement.classList.toggle('dark'); }
+
+        function toggleMobilePreview() {
+            const preview = document.getElementById('preview-container');
+            const sheet = document.getElementById('print_area');
+            preview.classList.toggle('mobile-active');
+            preview.classList.toggle('hidden');
+
+            if(preview.classList.contains('mobile-active')) {
+                // Hitung otomatis scale biar fit ke lebar layar HP
+                const screenWidth = window.innerWidth - 40; // margin 20px kiri kanan
+                const a4WidthInPx = 794; // approx 210mm in pixels at 96dpi
+                const scaleValue = screenWidth / a4WidthInPx;
+                sheet.style.setProperty('--zoom-level', scaleValue);
+            }
+        }
+
+        function addActivityInput() {
+            const id = Date.now();
+            const div = document.createElement('div');
+            div.className = "p-4 bg-slate-50 dark:bg-slate-800 border dark:border-slate-700 rounded-2xl relative space-y-3 group shadow-sm";
+            div.id = `group_${id}`;
+            div.innerHTML = `
+                <button onclick="removeActivity(${id})" class="absolute -top-2 -right-2 bg-red-500 text-white w-7 h-7 rounded-full text-xs">✕</button>
+                <input type="text" placeholder="Contoh: Kamis, 1 Januari 2026" class="w-full p-2.5 bg-white dark:bg-slate-900 dark:text-white border dark:border-slate-700 rounded-xl text-sm font-bold" oninput="updateActivityData(${id}, 'date', this.value)">
+                <textarea placeholder="Deskripsi kegiatan..." class="w-full p-2.5 bg-white dark:bg-slate-900 dark:text-white border dark:border-slate-700 rounded-xl text-sm h-16 outline-none" oninput="updateActivityData(${id}, 'desc', this.value)"></textarea>
+                <div class="flex items-center gap-2">
+                    <label class="px-3 py-1 bg-brand text-white rounded-lg text-[10px] font-bold cursor-pointer">+ FOTO
+                        <input type="file" multiple accept="image/*" class="hidden" onchange="handleImageUpload(event, ${id})">
+                    </label>
+                    <div id="prev_img_${id}" class="flex gap-1 overflow-x-auto py-1"></div>
+                </div>
+            `;
+            document.getElementById('activity_form_container').appendChild(div);
+            activities.push({ id, date: '', desc: '', images: [] });
+            updatePreview();
+        }
+
+        function removeActivity(id) {
+            document.getElementById(`group_${id}`).remove();
+            activities = activities.filter(a => a.id !== id);
+            updatePreview();
+        }
+
+        function updateActivityData(id, field, value) {
+            const act = activities.find(a => a.id === id);
+            if (act) act[field] = value;
+            updatePreview();
+        }
+
+        function handleImageUpload(event, id) {
+            const files = Array.from(event.target.files);
+            const act = activities.find(a => a.id === id);
+            const previewDiv = document.getElementById(`prev_img_${id}`);
+            if (act) {
+                act.images = []; previewDiv.innerHTML = '';
+                files.forEach(file => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        act.images.push(e.target.result);
+                        const img = document.createElement('img');
+                        img.src = e.target.result; img.className = "h-8 w-8 object-cover rounded border";
+                        previewDiv.appendChild(img);
+                        updatePreview();
+                    };
+                    reader.readAsDataURL(file);
+                });
+            }
+        }
+
+        function updatePreview() {
+            const g = (id) => document.getElementById(id).value;
+            const bulan = g('in_bulan');
+            const tahun = g('in_tahun');
+
+            document.getElementById('view_nama').innerText = g('in_nama');
+            document.getElementById('view_nama_footer').innerText = g('in_nama');
+            document.getElementById('view_nik').innerText = g('in_nik');
+            document.getElementById('view_sp').innerText = g('in_sp');
+            
+            document.getElementById('view_bulan_header').innerText = bulan;
+            document.getElementById('view_tahun_header').innerText = tahun;
+            document.getElementById('view_bulan_desc').innerText = bulan;
+            document.getElementById('view_bulan_kontrak').innerText = bulan;
+            document.getElementById('view_tahun_desc').innerText = tahun;
+            document.getElementById('view_bulan_act').innerText = bulan;
+            document.getElementById('view_tahun_act').innerText = tahun;
+            document.getElementById('view_bulan_challenge').innerText = bulan;
+            document.getElementById('view_tahun_challenge').innerText = tahun;
+
+            const lastDay = new Date(tahun, document.getElementById('in_bulan').selectedIndex + 1, 0).getDate();
+            document.getElementById('view_tgl_akhir').innerText = `${lastDay} ${bulan} ${tahun}`;
+
+            const container = document.getElementById('view_activities_container');
+            container.innerHTML = '';
+            activities.forEach(act => {
+                const li = document.createElement('li');
+                li.className = "font-bold";
+                let imgs = '';
+                if(act.images.length > 0) {
+                    imgs = '<ul class="list-disc ml-5 mt-2">';
+                    act.images.forEach(src => { imgs += `<li class="mb-4"><img src="${src}" class="photo-item shadow-md"></li>`; });
+                    imgs += '</ul>';
+                }
+                li.innerHTML = `<span>${act.date}</span><p class="font-normal mt-1 text-justify">${act.desc}</p>${imgs}`;
+                container.appendChild(li);
+            });
+        }
+        addActivityInput();
+    </script>
+</body>
+</html>
